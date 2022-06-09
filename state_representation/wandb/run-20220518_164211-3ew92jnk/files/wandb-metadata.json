@@ -1,0 +1,32 @@
+{
+    "os": "Windows-10-10.0.22000-SP0",
+    "python": "3.8.6",
+    "heartbeatAt": "2022-05-18T14:42:15.884581",
+    "startedAt": "2022-05-18T14:42:11.874540",
+    "docker": null,
+    "gpu": "NVIDIA GeForce RTX 2080 with Max-Q Design",
+    "gpu_count": 1,
+    "cpu_count": 16,
+    "cuda": null,
+    "args": [
+        "--env-name",
+        "MsPacmanNoFrameskip-v4",
+        "--wandb-proj",
+        "thesis",
+        "--num-processes",
+        "1",
+        "--train-encoder"
+    ],
+    "state": "running",
+    "program": "main.py",
+    "codePath": "state_representation\\main.py",
+    "git": {
+        "remote": "https://github.com/EliaPiccoli/Master-Thesis.git",
+        "commit": "caf640d9f4aced655b00ab686f69f8ef83724745"
+    },
+    "email": "eliakoby@live.it",
+    "root": "C:/Users/eliak/OneDrive/Desktop/UNIPI/Master-Thesis",
+    "host": "LAPTOP-S1LBI0V1",
+    "username": "eliak",
+    "executable": "C:\\Users\\eliak\\AppData\\Local\\Programs\\Python\\Python38\\python.exe"
+}

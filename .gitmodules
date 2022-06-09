@@ -1,0 +1,3 @@
+[submodule "state_representation/atari-representation-learning"]
+	path = state_representation/atari-representation-learning
+	url = https://github.com/mila-iqia/atari-representation-learning.git

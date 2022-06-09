@@ -1,0 +1,148 @@
+wandb_version: 1
+
+_wandb:
+  desc: null
+  value:
+    cli_version: 0.12.16
+    framework: torch
+    is_jupyter_run: false
+    is_kaggle_kernel: false
+    python_version: 3.8.6
+    start_time: 1652884931
+    t:
+      1:
+      - 1
+      - 5
+      - 41
+      - 53
+      - 55
+      2:
+      - 1
+      - 5
+      - 41
+      - 53
+      - 55
+      3:
+      - 15
+      4: 3.8.6
+      5: 0.12.16
+      8:
+      - 3
+      - 5
+batch_size:
+  desc: null
+  value: 64
+beta:
+  desc: null
+  value: 1.0
+checkpoint_index:
+  desc: null
+  value: -1
+collect_mode:
+  desc: null
+  value: random_agent
+color:
+  desc: null
+  value: false
+cuda_id:
+  desc: null
+  value: 0
+encoder_type:
+  desc: null
+  value: Nature
+end_with_relu:
+  desc: null
+  value: false
+entropy_threshold:
+  desc: null
+  value: 0.6
+env_name:
+  desc: null
+  value: MsPacmanNoFrameskip-v4
+epochs:
+  desc: null
+  value: 100
+feature_size:
+  desc: null
+  value: 256
+gru_layers:
+  desc: null
+  value: 2
+gru_size:
+  desc: null
+  value: 256
+linear:
+  desc: null
+  value: true
+lr:
+  desc: null
+  value: 0.0003
+method:
+  desc: null
+  value: infonce-stdim
+naff_fc_size:
+  desc: null
+  value: 2048
+no_downsample:
+  desc: null
+  value: true
+num_frame_stack:
+  desc: null
+  value: 1
+num_processes:
+  desc: null
+  value: 1
+num_rew_evals:
+  desc: null
+  value: 10
+num_runs:
+  desc: null
+  value: 1
+patience:
+  desc: null
+  value: 15
+pred_offset:
+  desc: null
+  value: 1
+pretraining_steps:
+  desc: null
+  value: 100000
+probe_collect_mode:
+  desc: null
+  value: random_agent
+probe_lr:
+  desc: null
+  value: 0.0003
+probe_steps:
+  desc: null
+  value: 50000
+seed:
+  desc: null
+  value: 42
+sequence_length:
+  desc: null
+  value: 100
+steps_end:
+  desc: null
+  value: 99
+steps_start:
+  desc: null
+  value: 0
+steps_step:
+  desc: null
+  value: 4
+train_encoder:
+  desc: null
+  value: true
+use_multiple_predictors:
+  desc: null
+  value: false
+wandb_entity:
+  desc: null
+  value: null
+wandb_proj:
+  desc: null
+  value: thesis
+weights_path:
+  desc: null
+  value: None

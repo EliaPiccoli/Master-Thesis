@@ -1,0 +1,10 @@
+--env-name MsPacmanNoFrameskip-v4
+	--num-frame-stack 1
+	--no-downsample
+	--pretraining-steps 100000
+--num-processes 1
+	--method inforce-stdim
+	--encoder-type Nature
+--wandb-proj thesis
+--wandb-entity epai
+--train-encoder
