@@ -6,5 +6,5 @@
 	--method inforce-stdim
 	--encoder-type Nature
 --wandb-proj thesis
---wandb-entity epai
+	--wandb-entity epai
 --train-encoder
