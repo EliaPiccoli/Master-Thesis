@@ -1,6 +1,5 @@
 import torch
 from model import VideoObjectSegmentationModel
-import hiddenlayer as hl
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
@@ -13,10 +12,11 @@ print(IN.shape)
 out = model(IN)
 print("O:", out.shape)
 
-transforms = [ hl.transforms.Prune('Constant') ]
-graph = hl.build_graph(model, IN, transforms=transforms)
-graph.theme = hl.graph.THEMES['blue'].copy()
-graph.save('magic', format='png')
+# import hiddenlayer as hl
+# transforms = [ hl.transforms.Prune('Constant') ]
+# graph = hl.build_graph(model, IN, transforms=transforms)
+# graph.theme = hl.graph.THEMES['blue'].copy()
+# graph.save('magic', format='png')
 
 # TODO
 # 1- Create dataset
