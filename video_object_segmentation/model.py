@@ -75,9 +75,14 @@ class VideoObjectSegmentationModel(nn.Module):
         # [ BS x K x 1 x H x W ]
         m_reshape = torch.unsqueeze(m, 2)
 
-        out = ot_reshape * m_reshape
+        flow_out = ot_reshape * m_reshape
 
-        # [ BS x 2 x H x W]
-        out = torch.sum(out, 1)
+        # [ BS x 2 x H x W ]
+        flow_out = torch.sum(flow_out, 1)
+        # [ BS x H x W x 2 ]
+        flow_out = torch.reshape(flow_out, (-1, flow_out.size(2), flow_out.size(3), flow_out.size(1)))
+
+        # [ BS x 2 X H x W ]
+        out = F.grid_sample(input, flow_out, align_corners=False)
 
         return out
