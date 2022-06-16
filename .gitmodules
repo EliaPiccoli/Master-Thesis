@@ -1,6 +1,6 @@
 [submodule "state_representation/atari-representation-learning"]
 	path = state_representation/atari-representation-learning
 	url = https://github.com/mila-iqia/atari-representation-learning.git
-[submodule ".\\video_object_segmentation\\MOREL\\"]
-	path = .\\video_object_segmentation\\MOREL\\
+[submodule "video_object_segmentation/MOREL"]
+	path = video_object_segmentation/MOREL
 	url = https://github.com/vik-goel/MOREL.git
