@@ -1,0 +1,24 @@
+{
+    "os": "Linux-3.10.0-957.27.2.el7.x86_64-x86_64-with-centos-7.6.1810-Core",
+    "python": "3.6.8",
+    "heartbeatAt": "2022-06-17T15:41:01.763670",
+    "startedAt": "2022-06-17T15:41:00.744045",
+    "docker": null,
+    "gpu": "Tesla V100-PCIE-16GB",
+    "gpu_count": 4,
+    "cpu_count": 144,
+    "cuda": "10.1.168",
+    "args": [],
+    "state": "running",
+    "program": "train_model.py",
+    "codePath": "video_object_segmentation/train_model.py",
+    "git": {
+        "remote": "git@github.com:EliaPiccoli/Master-Thesis.git",
+        "commit": "c35c766952456eb5f8f3763d2beb1d257d78047e"
+    },
+    "email": "eliakoby@live.it",
+    "root": "/data/e.piccoli/Master-Thesis",
+    "host": "dl580-gpu2.unipi.it",
+    "username": "e.piccoli",
+    "executable": "/data/e.piccoli/Master-Thesis/th-env/bin/python"
+}
