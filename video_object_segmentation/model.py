@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from kornia.losses import ssim_loss
 
 # !! in tf channels is last dimension
 
@@ -12,6 +13,8 @@ class VideoObjectSegmentationModel(nn.Module):
     def __init__(self, K=20, depth=24):
         super().__init__()
         
+        self.of_reg_cur = 0
+        self.of_reg_inc = 1e-5
         self.K = K
         self.depth = depth
         self.final_conv_size = 7 * 7 * 64 # check
@@ -76,6 +79,7 @@ class VideoObjectSegmentationModel(nn.Module):
         m_reshape = torch.unsqueeze(m, 2)
 
         flow_out = ot_reshape * m_reshape
+        reg = ot_reshape * m_reshape
 
         # [ BS x 2 x H x W ]
         flow_out = torch.sum(flow_out, 1)
@@ -85,4 +89,21 @@ class VideoObjectSegmentationModel(nn.Module):
         # [ BS x 2 X H x W ]
         out = F.grid_sample(input, flow_out, align_corners=False)
 
-        return out
+        return out, reg
+
+    def compute_loss(self, out, of):
+        x = torch.unsqueeze(out[:, 0, :, :], 1)
+        y = torch.unsqueeze(out[:, 1, :, :], 1)
+        # DSSIM
+        out_loss = (1 - ssim_loss(x, y, 11))/2
+
+        # L1 reg for of
+        of_loss_reg = torch.abs(of).mean().mean().mean().mean()
+        
+        loss = out_loss + self.of_reg_cur * of_loss_reg
+        
+        # increase regularitation
+        if self.training:
+            self.of_reg_cur = min(self.of_reg_cur + self.of_reg_inc, 1)
+
+        return loss

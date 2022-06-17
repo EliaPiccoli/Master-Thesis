@@ -1,6 +1,5 @@
 import torch
 from model import VideoObjectSegmentationModel
-from kornia.losses import ssim_loss
 from dataset import Dataset
 
 device = torch.device("cuda:2" if torch.cuda.is_available() else "cpu")
@@ -9,28 +8,32 @@ env = "MsPacmanNoFrameskip-v4"
 batch_size = 16
 H = W = 84
 num_frames = 2
+steps = 2 #250000
 
-data = Dataset(env)
+data = Dataset(env, batch_size, num_frames, H, W)
 
 model = VideoObjectSegmentationModel()
 model.to(device)
 
-for i in range(2):
-    # print("Step:", i)
-    inp = data.get_batch(batch_size, num_frames, H, W).to(device)
-    # print("IN:", inp.shape)
-    # print(inp)
+optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
 
-    out = model(inp)
-    # print("OUT:", out)
+for i in range(steps):
+    model.train()
+    inp = data.get_batch("train").to(device)
+    out, of = model(inp)
+    loss = model.compute_loss(out, of)
+    print("Train loss:", loss)
+    optimizer.zero_grad()
+    loss.backward()
+    optimizer.step()
 
-    x = torch.unsqueeze(out[:, 0, :, :], 1)
-    y = torch.unsqueeze(out[:, 1, :, :], 1)
+    model.eval()
+    inp = data.get_batch("val").to(device)
+    out, of = model(inp)
+    loss = model.compute_loss(out, of)
+    print("Val loss:", loss)
 
-    loss = (1 - ssim_loss(x, y, 11))/2
-    # print("loss:", loss, loss.shape)
-
-# TODO: define real training cycle and train model (setup wandb)
+# TODO: setup wandb
 
 # import hiddenlayer as hl
 # transforms = [ hl.transforms.Prune('Constant') ]
