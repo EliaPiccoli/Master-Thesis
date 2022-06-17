@@ -36,12 +36,12 @@ class Dataset():
             episodes_keys = self.valid_data_keys
         episodes = {k : self.episodes[k] for k in episodes_keys}
         valid_keys = [k for k in episodes.keys() if len(episodes[k]) >= 2]
-        probs = np.array([len(episodes[k]) for k in valid_keys], dtype=np.float32)
-        probs /= np.sum(probs)
+        # probs = np.array([len(episodes[k]) for k in valid_keys], dtype=np.float32)
+        # probs /= np.sum(probs)
 
         frames = np.zeros([self.batch_size, self.num_frames, self.H, self.W])
         for bs in range(self.batch_size):
-            k = np.random.choice(valid_keys, p=probs)
+            k = np.random.choice(valid_keys)
             f = episodes[k]
             idx = random.randint(0, len(f) - self.num_frames)
             for j in range(self.num_frames):

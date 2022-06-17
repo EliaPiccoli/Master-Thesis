@@ -82,27 +82,20 @@ class VideoObjectSegmentationModel(nn.Module):
         reg = ot_reshape * m_reshape
 
         # [ BS x 2 x H x W ]
-        flow_out = torch.sum(flow_out, 1)
-        # [ BS x H x W x 2 ]
-        flow_out = torch.reshape(flow_out, (-1, flow_out.size(2), flow_out.size(3), flow_out.size(1)))
-
-        # [ BS x 2 X H x W ]
-        out = F.grid_sample(input, flow_out, align_corners=False)
+        out = torch.sum(flow_out, 1)
 
         return out, reg
 
-    def compute_loss(self, out, of):
-        x = torch.unsqueeze(out[:, 0, :, :], 1)
-        y = torch.unsqueeze(out[:, 1, :, :], 1)
+    def compute_loss(self, inp, out, of):
         # DSSIM
-        out_loss = (1 - ssim_loss(x, y, 11))/2
+        out_loss = (1 - ssim_loss(inp, out, 11))/2
 
         # L1 reg for of
         of_loss_reg = torch.abs(of).mean().mean().mean().mean()
         
         loss = out_loss + self.of_reg_cur * of_loss_reg
         
-        # increase regularitation
+        # increase regularization
         if self.training:
             self.of_reg_cur = min(self.of_reg_cur + self.of_reg_inc, 1)
 
