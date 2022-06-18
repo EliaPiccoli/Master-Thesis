@@ -9,7 +9,7 @@ def make_dataset(env_name):
     # Hyper-parameters
     total_frames_to_generate = 100000
     env_id = env_name
-    save_path = './data/{}/sfmnet/episodes'.format(env_id)
+    save_path = 'data/{}/sfmnet/episodes'.format(env_id)
     seed = 0
 
     # Track how many frames we have created.
