@@ -1,4 +1,5 @@
 video_object_segmentation/data/*
+keypoints-transporter/data/*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
