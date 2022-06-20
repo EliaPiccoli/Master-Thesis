@@ -14,7 +14,7 @@ ENV = "MsPacmanNoFrameskip-v4"
 data_path = f"data/{ENV}"
 NUM_EPS = 100
 MAX_EP_LEN = 100
-MAX_ITER = 20
+MAX_ITER = 1e6
 batch_size = 64
 image_channels = 3
 K = 4
@@ -64,7 +64,7 @@ for i, (xt, xtp1) in enumerate(data_loader):
 
     wandb.log({
             "loss": loss,
-            "lr": scheduler.get_lr()
+            "lr": scheduler.get_last_lr()[0]
         }, step=i)
 
     if i % 100 == 0:
