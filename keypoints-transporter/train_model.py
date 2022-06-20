@@ -4,10 +4,9 @@ import torch
 import torch.nn.functional as F
 from torchvision import transforms
 from torch.utils.data import DataLoader
-from models import Encoder, KeyNet, RefineNet, Transporter, transport
+from models import Encoder, KeyNet, RefineNet, Transporter
 from dataset import Dataset, Sampler
 
-torch.set_num_threads(1)
 device = torch.device("cuda:2" if torch.cuda.is_available() else "cpu")
 
 ENV = "MsPacmanNoFrameskip-v4"
@@ -45,7 +44,7 @@ transporter.train()
 
 dataset = Dataset(data_path, NUM_EPS, MAX_EP_LEN, transforms.ToTensor())
 sampler = Sampler(dataset)
-data_loader = DataLoader(dataset, batch_size, sampler=sampler, num_workers=4)
+data_loader = DataLoader(dataset, batch_size, sampler=sampler, num_workers=8)
 
 optimizer = torch.optim.Adam(transporter.parameters(), lr)
 scheduler = torch.optim.lr_scheduler.StepLR(optimizer, lr_deacy_len, lr_decay)
@@ -58,15 +57,16 @@ for i, (xt, xtp1) in enumerate(data_loader):
     optimizer.zero_grad()
     reconstruction = transporter(xt, xtp1)
     loss = F.mse_loss(reconstruction, xtp1)
-    loss.backward
+    loss.backward()
     optimizer.step()
     scheduler.step()
 
+    last_lr = scheduler.get_last_lr()[0]
     wandb.log({
             "loss": loss,
-            "lr": scheduler.get_last_lr()[0]
+            "lr": last_lr
         }, step=i)
 
     if i % 100 == 0:
-        print(f"Step: {i} - Loss: {loss.item()}")
+        print(f"Step: {i} - Loss: {loss.item()} - LR: {last_lr}")
         torch.save(transporter.state_dict(), os.path.join(wandb.run.dir, ENV + '.pt'))
