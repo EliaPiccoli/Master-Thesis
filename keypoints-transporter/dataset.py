@@ -24,6 +24,10 @@ class Dataset(Dataset):
 
         return imgt, imgtp1
 
+    def get_trajectory(self, idx):
+        images = [np.array(Image.open('{}/{}/{}.png'.format(self.path, idx, t))) for t in range(self.max_ep_len)]
+        return [self.transform(im) for im in images]
+
 class Sampler(Sampler):
     def __init__(self, dataset):
         self.dataset = dataset
