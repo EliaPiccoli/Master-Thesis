@@ -1,5 +1,6 @@
 import wandb
 import os
+import sys
 import torch
 import torch.nn.functional as F
 from torchvision import transforms
@@ -7,9 +8,15 @@ from torch.utils.data import DataLoader
 from models import Encoder, KeyNet, RefineNet, Transporter
 from dataset import Dataset, Sampler
 
-device = torch.device("cuda:2" if torch.cuda.is_available() else "cpu")
+if len(sys.argv) < 3:
+    print(f"Usage: python {sys.argv[0]} <env> <gpu-device>")
+    exit()
+ENV = sys.argv[1]
+gpu = sys.argv[2]
 
-ENV = "PongNoFrameskip-v4"
+device = torch.device(gpu if torch.cuda.is_available() else "cpu")
+
+# ENV = "PongNoFrameskip-v4"
 data_path = f"data/{ENV}"
 NUM_EPS = 100
 MAX_EP_LEN = 100
