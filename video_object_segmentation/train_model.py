@@ -7,9 +7,9 @@ from model import VideoObjectSegmentationModel
 from dataset import Dataset
 
 torch.set_num_threads(1)
-device = torch.device("cuda:2" if torch.cuda.is_available() else "cpu")
+device = torch.device("cuda:3" if torch.cuda.is_available() else "cpu")
 
-env = "MsPacmanNoFrameskip-v4"
+env = "PongNoFrameskip-v4"
 batch_size = 32
 H = W = 84
 num_frames = 2
@@ -41,10 +41,10 @@ for i in range(steps):
     inp = data.get_batch("train").to(device)
     flow_out, of = model(inp)
     flow_out = torch.reshape(flow_out, (-1, flow_out.size(2), flow_out.size(3), flow_out.size(1)))
-    x1 = torch.unsqueeze(inp[:, 1, :, :], 1)
-    x0_ = F.grid_sample(x1, flow_out, align_corners=False)
     x0 = torch.unsqueeze(inp[:, 0, :, :], 1)
-    tr_loss = model.compute_loss(x0, x0_, of)
+    x0_ = F.grid_sample(x0, flow_out, align_corners=False)
+    x1 = torch.unsqueeze(inp[:, 1, :, :], 1)
+    tr_loss = model.compute_loss(x0_, x1, of)
     tr_loss.backward()
     optimizer.step()
 
@@ -52,16 +52,17 @@ for i in range(steps):
     inp = data.get_batch("val").to(device)
     flow_out, of = model(inp)
     flow_out = torch.reshape(flow_out, (-1, flow_out.size(2), flow_out.size(3), flow_out.size(1)))
-    x1 = torch.unsqueeze(inp[:, 1, :, :], 1)
-    x0_ = F.grid_sample(x1, flow_out, align_corners=False)
     x0 = torch.unsqueeze(inp[:, 0, :, :], 1)
-    val_loss = model.compute_loss(x0, x0_, of)
+    x0_ = F.grid_sample(x0, flow_out, align_corners=False)
+    x1 = torch.unsqueeze(inp[:, 1, :, :], 1)
+    val_loss = model.compute_loss(x0_, x1, of)
 
     if val_loss < best_val_loss:
         torch.save(model.state_dict(), os.path.join(wandb.run.dir, env + '.pt'))
         best_val_loss = val_loss
 
-    print(f"Step: {i} - TLoss: {tr_loss.item()} - VLoss: {val_loss.item()}")
+    if i % 100 == 0:
+        print(f"Step: {i} - TLoss: {tr_loss.item()} - VLoss: {val_loss.item()}")
     wandb.log({
             "train_loss": tr_loss,
             "val_loss": val_loss,

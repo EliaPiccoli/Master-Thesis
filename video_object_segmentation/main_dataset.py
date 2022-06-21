@@ -20,7 +20,7 @@ def make_dataset(env_name):
     env = make_atari(env_id)
     env = wrap_deepmind(env)
     env.seed(seed)
-    set_global_seeds(seed)
+    # set_global_seeds(seed)
 
     # Generate frames.
     while total_frames_generated < total_frames_to_generate:
