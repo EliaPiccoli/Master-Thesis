@@ -9,7 +9,7 @@ from dataset import Dataset, Sampler
 
 device = torch.device("cuda:2" if torch.cuda.is_available() else "cpu")
 
-ENV = "MsPacmanNoFrameskip-v4"
+ENV = "PongNoFrameskip-v4"
 data_path = f"data/{ENV}"
 NUM_EPS = 100
 MAX_EP_LEN = 100

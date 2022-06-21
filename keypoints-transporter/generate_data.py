@@ -6,7 +6,7 @@ import os
 from PIL import Image
 from baselines.common.atari_wrappers import make_atari, WarpFrame
 
-ENV = "MsPacmanNoFrameskip-v4"
+ENV = "PongNoFrameskip-v4"
 NUM_EPS = 100
 
 env = WarpFrame(make_atari(ENV, max_episode_steps=100), grayscale=False)
@@ -14,7 +14,6 @@ obs = env.reset()
 datadir = f"data/{ENV}"
 
 for ep in range(NUM_EPS):
-    print("Episode:", ep)
     os.makedirs(f"{datadir}/{ep}", exist_ok=True)
     obs = env.reset()
     timestep = 0
