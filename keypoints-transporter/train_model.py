@@ -75,5 +75,5 @@ for i, (xt, xtp1) in enumerate(data_loader):
         }, step=i)
 
     if i % 100 == 0:
-        print(f"Step: {i} - Loss: {loss.item()} - LR: {last_lr}")
         torch.save(transporter.state_dict(), os.path.join(wandb.run.dir, ENV + '.pt'))
+        # print(f"Step: {i} - Loss: {loss.item()} - LR: {last_lr}")
