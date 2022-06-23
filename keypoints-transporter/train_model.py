@@ -56,6 +56,7 @@ data_loader = DataLoader(dataset, batch_size, sampler=sampler, num_workers=8)
 optimizer = torch.optim.Adam(transporter.parameters(), lr)
 scheduler = torch.optim.lr_scheduler.StepLR(optimizer, lr_deacy_len, lr_decay)
 
+best_loss = 100
 for i, (xt, xtp1) in enumerate(data_loader):
     if i > MAX_ITER:
         break
@@ -74,6 +75,8 @@ for i, (xt, xtp1) in enumerate(data_loader):
             "lr": last_lr
         }, step=i)
 
-    if i % 100 == 0:
+    if loss < best_loss:
+        best_loss = loss
         torch.save(transporter.state_dict(), os.path.join(wandb.run.dir, ENV + '.pt'))
         # print(f"Step: {i} - Loss: {loss.item()} - LR: {last_lr}")
+torch.save(transporter.state_dict(), os.path.join(wandb.run.dir, ENV + '_final.pt'))
