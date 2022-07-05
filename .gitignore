@@ -1,6 +1,7 @@
 video_object_segmentation/data/*
 keypoints-transporter/data/*
 *.wandb
+*.ipynb_checkpoints
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
