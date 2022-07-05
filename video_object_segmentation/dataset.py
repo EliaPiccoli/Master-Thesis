@@ -47,7 +47,8 @@ class Dataset():
             for j in range(self.num_frames):
                 # print(bs, j)
                 path = f[idx + j]
-                x = np.expand_dims(np.array(Image.open(path)), axis=0)
+                x = np.array(Image.open(path)) / 255.
+                x = np.expand_dims(x, axis=0)
                 # print(x.shape)
                 frames[bs, j:j+1, :, :] = x
         

@@ -3,15 +3,21 @@ import torch
 import wandb
 import os
 import sys
+import random
 import torch.nn.functional as F
 from model import VideoObjectSegmentationModel
 from dataset import Dataset
 
-if len(sys.argv) < 3:
-    print(f"Usage: python {sys.argv[0]} <env> <gpu-device>")
+if len(sys.argv) < 4:
+    print(f"Usage: python {sys.argv[0]} <env> <gpu-device> <seed>")
     exit()
 env = sys.argv[1]
 gpu = sys.argv[2]
+SEED = int(sys.argv[3])
+
+random.seed(SEED)
+np.random.seed(SEED)
+torch.manual_seed(SEED)
 
 torch.set_num_threads(1)
 device = torch.device(gpu if torch.cuda.is_available() else "cpu")
@@ -21,64 +27,70 @@ batch_size = 16
 H = W = 84
 num_frames = 2
 steps = 250000
-lr = 1e-4
+lr = 1e-3
+max_grad_norm = 5.0
 
-wandb.init(project="thesis", entity="epai", tags=["VideoObjectSegmentation"])
+wandb.init(project="thesis", entity="epai", tags=["VideoObjectSegmentation-V3"])
 wandb.config.update({
+        "seed": SEED,
         "env": env,
         "batch-size": batch_size,
         "H": H,
         "W": W,
         "num_frames": num_frames,
         "steps": steps,
-        "lr": lr
+        "lr": lr,
+        "max_grad_norm": max_grad_norm
     })
 
 data = Dataset(env, batch_size, num_frames, H, W)
 
-model = VideoObjectSegmentationModel()
+model = VideoObjectSegmentationModel(device=device)
 model.to(device)
 
 optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+lamb = lambda epoch : 1 - epoch/steps
+scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=lamb)
 
-best_val_loss = np.Inf
+best_val_loss = 1.
 for i in range(steps):
     model.train()
     optimizer.zero_grad()
     inp = data.get_batch("train").to(device)
-    flow_out = model(inp)
-    flow_out = torch.reshape(flow_out, (-1, flow_out.size(2), flow_out.size(3), flow_out.size(1)))
+    x0_ = model(inp)
     x0 = torch.unsqueeze(inp[:, 0, :, :], 1)
-    x0_ = F.grid_sample(x0, flow_out, align_corners=False)
-    x1 = torch.unsqueeze(inp[:, 1, :, :], 1)
-    tr_loss = model.compute_loss(x0_, x1)
+    tr_loss = model.compute_loss(x0, x0_)
     tr_loss.backward()
+    torch.nn.utils.clip_grad_norm_(model.parameters(), max_grad_norm)
     optimizer.step()
-
+    scheduler.step()
+    
     model.eval()
     inp = data.get_batch("val").to(device)
-    flow_out = model(inp)
-    flow_out = torch.reshape(flow_out, (-1, flow_out.size(2), flow_out.size(3), flow_out.size(1)))
+    x0_ = model(inp)
     x0 = torch.unsqueeze(inp[:, 0, :, :], 1)
-    x0_ = F.grid_sample(x0, flow_out, align_corners=False)
-    x1 = torch.unsqueeze(inp[:, 1, :, :], 1)
-    val_loss = model.compute_loss(x0_, x1)
+    val_loss = model.compute_loss(x0, x0_)
+    
+    model.update_reg()
 
-    if val_loss < best_val_loss:
-        # print(f"Ep: {i} new best val_loss : {val_loss}")
-        torch.save(model.state_dict(), os.path.join(wandb.run.dir, env + '.pt'))
+    if val_loss <= best_val_loss:
         best_val_loss = val_loss
+        # print(f"Ep: {i} new best val_loss : {val_loss}")
+        # torch.save(model.state_dict(), f"model_{i}.pt")
+        torch.save(model.state_dict(), os.path.join(wandb.run.dir, env + '.pt'))
 
-    if i % 100 == 0:
-        print(f"Step: {i} - TLoss: {tr_loss.item()} - VLoss: {val_loss.item()} - BestV: {best_val_loss}")
+    # if i % 100 == 0:
+    #     print(f"Step: {i:5d} - TLoss: {tr_loss.item():.8f} - VLoss: {val_loss.item():.8f} - BestV: {best_val_loss:.8f} - RelErr: {rel_err:.8f}")
+
+    last_lr = scheduler.get_last_lr()[0]
     wandb.log({
             "train_loss": tr_loss,
             "val_loss": val_loss,
             "best_val": best_val_loss,
-            "reg_par": model.of_reg_cur
+            "reg_par": model.of_reg_cur,
+            "lr": last_lr
         }, step=i)
-
-# torch.save(model.state_dict(), os.path.join(wandb.run.dir, env + '.pt'))
+torch.save(model.state_dict(), os.path.join(wandb.run.dir, env + '_final.pt'))
 
 # import hiddenlayer as hl
 # transforms = [ hl.transforms.Prune('Constant') ]
