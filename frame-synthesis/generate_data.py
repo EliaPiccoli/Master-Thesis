@@ -6,11 +6,11 @@ import os
 from PIL import Image
 from baselines.common.atari_wrappers import make_atari, WarpFrame
 
-# data : 1000 x 300 = 300k -> 80-20
+# data : 1000 x 100 = 100k -> 80-20
 ENV = "PongNoFrameskip-v4"
 NUM_EPS = 1000
 
-env = WarpFrame(make_atari(ENV, max_episode_steps=300), width=256, height=256, grayscale=False)
+env = WarpFrame(make_atari(ENV, max_episode_steps=100), width=256, height=256, grayscale=False)
 obs = env.reset()
 datadir = f"data/{ENV}"
 

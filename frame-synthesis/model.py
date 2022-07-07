@@ -130,3 +130,48 @@ class VoxelFlow(nn.Module):
         out = mask*out1+(1.0-mask)*out2
 
         return out
+
+    def get_optim_policies(self):
+        outs = []
+        outs.extend(
+            self.get_module_optim_policies(
+                self,
+                self.config,
+                'model',
+            ))
+        return outs
+
+    def get_module_optim_policies(self, module, config, prefix):
+        weight = []
+        bias = []
+        bn = []
+
+        for m in module.modules():
+            if isinstance(m, nn.Conv2d):
+                ps = list(m.parameters())
+                weight.append(ps[0])
+                if len(ps) == 2:
+                    bias.append(ps[1])
+            elif isinstance(m, nn.BatchNorm2d):
+                bn.extend(list(m.parameters()))
+
+        return [
+            {
+                'params': weight,
+                'lr_mult': 1,
+                'decay_mult': 1,
+                'name': prefix + " weight"
+            },
+            {
+                'params': bias,
+                'lr_mult': 2,
+                'decay_mult': 0,
+                'name': prefix + " bias"
+            },
+            {
+                'params': bn,
+                'lr_mult': 1,
+                'decay_mult': 1,
+                'name': prefix + " bn scale/shift"
+            },
+        ]

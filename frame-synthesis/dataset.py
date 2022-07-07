@@ -4,36 +4,33 @@ from PIL import Image
 from torch.utils.data import Dataset, Sampler
 
 class Dataset(Dataset):
-    def __init__(self, path):
+    def __init__(self, path, idxs, max_len):
         super().__init__()
 
         self.path = path
-
-    def __len__(self):
-        raise NotImplementedError
-
-    def __getitem__(self, index):
-        n, t = index
-        # input
-        img1 = torch.from_numpy(np.array(Image.open(f"{self.path}/{n}/{t}.png")))
-        img2 = torch.from_numpy(np.array(Image.open(f"{self.path}/{n}/{t+1}.png")))
-        # output
-        img3 = torch.from_numpy(np.array(Image.open(f"{self.path}/{n}/{t+2}.png")))
-
-        return img1, img2, img3
-
-class Sampler(Sampler):
-    def __init__(self, idxs, max_len):
-        super().__init__()
-
+        self.input_mean = [0.5 * 255, 0.5 * 255, 0.5 * 255]
+        self.input_std = [0.5 * 255, 0.5 * 255, 0.5 * 255]
         self.idxs = idxs
         self.max_ep_len = max_len
-    
-    def __iter__(self):
-        while True:
-            n = np.choice(self.idxs)
-            t = np.random.randint(0, self.max_ep_len - 3)
-            yield n, t
 
     def __len__(self):
-        raise NotImplementedError
+        return len(self.idxs)
+
+    def _normalize(self, img, mean, std):
+        img = img - np.array(mean)[np.newaxis, np.newaxis, ...]
+        img = img / np.array(std)[np.newaxis, np.newaxis, ...]
+        return img
+
+    def __getitem__(self, idx):
+        n = idx
+        t = np.random.randint(0, self.max_ep_len - 3)
+        imgs = []
+        imgs.append(np.array(Image.open(f"{self.path}/{n}/{t}.png")))
+        imgs.append(np.array(Image.open(f"{self.path}/{n}/{t+1}.png")))
+        imgs.append(np.array(Image.open(f"{self.path}/{n}/{t+2}.png")))
+
+        for i in range(len(imgs)):
+            imgs[i] = self._normalize(imgs[i], self.input_mean, self.input_std)
+            imgs[i] = torch.from_numpy(imgs[i]).permute(2, 0, 1).contiguous().float()
+
+        return torch.cat([imgs[0], imgs[1]], 0), imgs[-1]
