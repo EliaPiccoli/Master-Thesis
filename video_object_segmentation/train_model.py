@@ -27,10 +27,10 @@ batch_size = 16
 H = W = 84
 num_frames = 2
 steps = 250000
-lr = 1e-3
+lr = 1e-4
 max_grad_norm = 5.0
 
-wandb.init(project="thesis", entity="epai", tags=["VideoObjectSegmentation-V3"])
+wandb.init(project="thesis", entity="epai", tags=["VideoObjectSegmentation-V4"])
 wandb.config.update({
         "seed": SEED,
         "env": env,

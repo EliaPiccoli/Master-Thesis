@@ -134,7 +134,7 @@ class VideoObjectSegmentationModel(nn.Module):
 
     def compute_loss(self, x, x_):
         # DSSIM
-        out_loss = (1.0 - ssim_loss(x, x_, 11)) / 2.0
+        out_loss = ssim_loss(x, x_, 11)
 
         # L1 reg for translations masks
         of_loss_reg = torch.abs(self.translation_masks).mean(-1).mean(-1).mean(-1).mean(-1)
