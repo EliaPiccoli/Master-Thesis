@@ -11,7 +11,7 @@ class Dataset(Dataset):
         self.ep = ep
         self.max_ep_len = max_ep_len
 
-    def __len__():
+    def __len__(self):
         raise NotImplementedError
 
     def __getitem__(self, index):

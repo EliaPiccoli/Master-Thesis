@@ -1,8 +1,30 @@
 import torch
-import time
+import sys
 from model import VoxelFlow
 
-device = "cuda:2"
+if len(sys.argv) < 3:
+    print(f"Usage: python {sys.argv[0]} <env> <gpu-device>")
+    exit()
+ENV = sys.argv[1]
+gpu = sys.argv[2]
+
+device = torch.device(gpu if torch.cuda.is_available() else "cpu")
+
+data_path = f"data/{ENV}"
+NUM_EPS = 100
+MAX_EP_LEN = 100
+img_ch = 3
+img_sz = (256, 256)
+
+batch_size = 32
+# lr = ...
+
+
+
+
+
+
+
 model = VoxelFlow()
 model = model.to(device)
 model.train()
