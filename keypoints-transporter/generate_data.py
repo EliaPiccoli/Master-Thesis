@@ -8,10 +8,11 @@ from baselines.common.atari_wrappers import make_atari, WarpFrame
 
 ENV = "PongNoFrameskip-v4"
 NUM_EPS = 100
+IMG_SZ = 256
 
-env = WarpFrame(make_atari(ENV, max_episode_steps=100), grayscale=False)
+env = WarpFrame(make_atari(ENV, max_episode_steps=100), width=IMG_SZ, height=IMG_SZ, grayscale=False)
 obs = env.reset()
-datadir = f"data/{ENV}"
+datadir = f"data/{ENV}_{IMG_SZ}"
 
 for ep in range(NUM_EPS):
     os.makedirs(f"{datadir}/{ep}", exist_ok=True)
