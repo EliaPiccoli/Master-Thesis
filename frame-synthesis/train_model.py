@@ -57,7 +57,7 @@ model = model.to(device)
 
 opt = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=w_decay)
 L = torch.nn.MSELoss().cuda()
-E = SSIMLoss(11)
+E = SSIMLoss(11) # it computes DSSIM :)
 
 best_eval = 0.0
 for e in range(max_epoch):
@@ -91,9 +91,9 @@ for e in range(max_epoch):
 
     if avg_ssim > best_eval:
         best_eval = avg_ssim
-        torch.save(model.state_dict(), os.path.join(wandb.run.dir, ENV, '.pt'))
+        torch.save(model.state_dict(), os.path.join(wandb.run.dir, ENV + '.pt'))
 
-    print(f"{e} - tr: {avg_train_loss} val: {avg_ssim} best: {best_eval}")    
+    # print(f"{e} - tr: {avg_train_loss} val: {avg_ssim} best: {best_eval}")
     wandb.log({
         "tr_loss": avg_train_loss,
         "eval" : avg_ssim,
