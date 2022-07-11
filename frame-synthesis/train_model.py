@@ -100,4 +100,4 @@ for e in range(max_epoch):
         "best_eval": best_eval
     }, step=e)
 
-torch.save(model.state_dict(), os.path.join(wandb.run.dir, ENV, '_final.pt'))
+torch.save(model.state_dict(), os.path.join(wandb.run.dir, ENV + '_final.pt'))
