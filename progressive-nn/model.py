@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
+import cv2
 
 class PNNCol(nn.Module):
     '''
@@ -11,11 +12,26 @@ class PNNCol(nn.Module):
        [3] Linear
        [4] Linear
     '''
-    def __init__(self, col_id, num_channels, n_actions, input_size, hidden_size=256):
+    def __init__(self, col_id, num_channels, n_actions, input_size, base_skills, hidden_size=256):
         super().__init__()
 
         self.col_id = col_id
         self.num_layers = 5
+
+        # init all base skills and freeze them
+        self.skills = nn.ModuleList()
+        self.skills_name = []
+        self.prev_input = None
+        # skills order: state-representation, video-segmentation, keypoints
+        for name, skill in base_skills:
+            self.skills_name.append(name)
+            self.skills.append(skill)
+            self.skills[-1].eval()
+            for param in self.skills[-1].parameters():
+                param.requires_grad = False
+
+        # adapters for skills (hardcoded)
+        self.adapter_segmentation = nn.Conv2d(21, 21, 5, 5)
 
         # init normal model, lateral connection, adapter layer and alpha
         self.w = nn.ModuleList()
@@ -25,11 +41,11 @@ class PNNCol(nn.Module):
 
         # define nn model
         self.w.append(
-            nn.Conv2d(num_channels, 12, 8, 4, 1),
+            nn.Conv2d(num_channels, 64, 3, 1, 1),
         )
         self.w.extend([
-            nn.Conv2d(12, 12, 4, 2, 1),
-            nn.Conv2d(12, 12, (3, 4), 1, 1)
+            nn.Conv2d(64, 32, 3, 1, 1),
+            nn.Conv2d(32, 32, 3, 1, 1)
         ])
         conv_out_size = self._get_conv_out(input_size)
         self.w.append(
@@ -46,8 +62,8 @@ class PNNCol(nn.Module):
             self.v.append(nn.ModuleList)
             self.v[i].append(nn.Identity())
             self.v[i].extend([
-                nn.Conv2d(12, 1, 1),
-                nn.Conv2d(12, 1, 1)
+                nn.Conv2d(32, 1, 1),
+                nn.Conv2d(32, 1, 1)
             ])
             self.v[i].append(nn.Linear(conv_out_size, conv_out_size))
             self.v[i].append(nn.Linear(hidden_size, hidden_size))
@@ -66,13 +82,56 @@ class PNNCol(nn.Module):
             self.u.append(nn.ModuleList())
             self.u[i].append(nn.Identity())
             self.u[i].extend([
-                nn.Conv2d(1, 12, 4, 2, 1),
-                nn.Conv2d(1, 12, (3, 4), 1, 1)
+                nn.Conv2d(1, 32, 3, 2, 1),
+                nn.Conv2d(1, 32, 3, 2, 1)
             ])
             self.u[i].append(nn.Linear(conv_out_size, hidden_size))
             self.u[i].append(nn.Linear(hidden_size, n_actions))
 
     def forward(self, x, pre_out):
+        # x [ 3 x 84 x 84 ]
+
+        # use skills to elaborate the input
+        state_out = None
+        video_out = None
+        key_out = None
+        for i in range(len(self.skills)):
+            if self.skills_name[i] == "state-representation":
+                with torch.no_grad():
+                    # resize to bigger image
+                    rx = cv2.resize(x, (256,256), interpolation=cv2.INTER_LINEAR)
+                    o = self.skills[i](rx)
+                    # from linear to img just reshape
+                    o = torch.reshape(o, (-1, 16, 16))
+                    o = torch.unsqueeze(o, 1)
+                    state_out = o
+            elif self.skills_name[i] == 'video-segmentation':
+                # grayscale & normalized input
+                gray_x = x[0, :, :]*0.2125 + x[1, :, :]*0.7154 + x[2, :, :]*0.0721
+                norm_gray_x = gray_x / 255.
+                out = None
+                with torch.no_grad():
+                    if self.prev_input is None:
+                        o = self.skills[i](norm_gray_x, norm_gray_x)
+                    else:
+                        o = self.skills[i](self.prev_input, norm_gray_x)
+                    self.prev_input = norm_gray_x
+                    out = torch.cat([o, self.skills[i].object_masks], 1)
+                    video_out = out
+            elif self.skills_name[i] == "keypoints":
+                with torch.no_grad():
+                    o_enc = self.skills[i].encoder(x)
+                    o_key = self.skills[i].key_net(x)
+                    o = torch.cat([o_enc, o_key], 1)
+                    key_out = o
+            else:
+                raise NotImplemented(f"{self.skills_name[i]} not implemented")
+
+        adapt_video_out = nn.ReLU(self.adapter_segmentation(video_out))
+
+        # real input is the concatenation of all the input skills
+        x = torch.cat([state_out, key_out, adapt_video_out], 1)
+
         # put a placeholder to occupy the first layer spot
         next_out, w_out = [torch.zeros(x.shape)], x
 
@@ -115,3 +174,28 @@ class PNNCol(nn.Module):
         for i in range(self.nlayers - 2):
             output = self.w[i](output)
         return int(np.prod(output.size()))
+
+class PNN(nn.Module):
+    def __init__(self, allcol):
+        super().__init__()
+
+        self.columns = nn.ModuleList()
+        for col in allcol:
+            self.columns.append(col)
+
+    def freeze(self):
+        if len(self.columns) == 1:
+            return
+        
+        for i in range(len(self.columns - 1)):
+            for param in self.columns[i].parameters():
+                param.requires_grad = False
+
+    def forward(self, x):
+        output, next_out = None, []
+
+        for i in range(len(self.columns)):
+            output, col_out = self.columns[i](x, next_out)
+            next_out.append(col_out)
+
+        return output
