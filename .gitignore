@@ -1,6 +1,6 @@
 video_object_segmentation/data/*
-keypoints-transporter/data/*
-frame-synthesis/data/*
+keypoints_transporter/data/*
+frame_synthesis/data/*
 *.wandb
 *.ipynb_checkpoints
 
