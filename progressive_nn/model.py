@@ -1,10 +1,7 @@
-from cv2 import GFTTDetector
-from matplotlib.pyplot import gray
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
-import cv2
 
 class PNNCol(nn.Module):
     '''

@@ -1,10 +1,8 @@
-from argparse import Namespace
 import sys
 sys.path.append('../')
 
 import torch
-import numpy as np
-
+from argparse import Namespace
 from model import PNN, PNNCol
 from atariari.methods.encoders import NatureCNN
 from video_object_segmentation.model import VideoObjectSegmentationModel
@@ -12,7 +10,9 @@ from keypoints_transporter.models import Encoder, KeyNet, RefineNet, Transporter
 
 device = 'cpu' # torch.device('cuda:2' if torch.cuda.is_available() else 'cpu')
 
-state_path = "/data/e.piccoli/Master-Thesis/state_representation/wandb/run-20220518_164211-3ew92jnk/files/encoder.pt"
+ENV = "PongNoFrameskip-v4"
+
+state_path = "/data/e.piccoli/Master-Thesis/state_representation/wandb/run-20220722_190610-37a6tv3d/files/PongNoFrameskip-v4.pt"
 n = Namespace()
 setattr(n, 'feature_size', 256)
 setattr(n, 'no_downsample', True)
