@@ -1,3 +1,5 @@
+from cv2 import GFTTDetector
+from matplotlib.pyplot import gray
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -32,6 +34,8 @@ class PNNCol(nn.Module):
 
         # adapters for skills (hardcoded)
         self.adapter_segmentation = nn.Conv2d(21, 21, 5, 5)
+        self.adapter_keypoints = nn.Conv2d(132, 132, 6)
+        self.relu = nn.ReLU()
 
         # init normal model, lateral connection, adapter layer and alpha
         self.w = nn.ModuleList()
@@ -97,41 +101,68 @@ class PNNCol(nn.Module):
         key_out = None
         for i in range(len(self.skills)):
             if self.skills_name[i] == "state-representation":
+                print("--------- STATE SKILL ---------")
+                print("INP_SZ:", x.shape)
                 with torch.no_grad():
                     # resize to bigger image
-                    rx = cv2.resize(x, (256,256), interpolation=cv2.INTER_LINEAR)
-                    o = self.skills[i](rx)
+                    rx = F.interpolate(x, (160, 210), mode='bilinear', align_corners=True)
+                    print("RX:", rx.shape)
+                    # grayscale
+                    gray_rx = rx[:, 0, :, :]*0.2125 + rx[:, 1, :, :]*0.7154 + rx[:, 2, :, :]*0.0721
+                    gray_rx = torch.unsqueeze(gray_rx, 1)
+                    print("INP_RSZ:", gray_rx.shape)
+                    o = self.skills[i](gray_rx)
+                    print("OUT_SZ:", o.shape)
                     # from linear to img just reshape
                     o = torch.reshape(o, (-1, 16, 16))
                     o = torch.unsqueeze(o, 1)
                     state_out = o
+                    print("STATE_OUT:", state_out.shape)
             elif self.skills_name[i] == 'video-segmentation':
-                # grayscale & normalized input
-                gray_x = x[0, :, :]*0.2125 + x[1, :, :]*0.7154 + x[2, :, :]*0.0721
-                norm_gray_x = gray_x / 255.
-                out = None
+                print("--------- VIDEO SKILL ---------")
+                print("INP_SZ:", x.shape)
                 with torch.no_grad():
-                    if self.prev_input is None:
-                        o = self.skills[i](norm_gray_x, norm_gray_x)
-                    else:
-                        o = self.skills[i](self.prev_input, norm_gray_x)
+                    # grayscale & normalized input
+                    gray_x = x[:, 0, :, :]*0.2125 + x[:, 1, :, :]*0.7154 + x[:, 2, :, :]*0.0721
+                    gray_x = torch.unsqueeze(gray_x, 1)
+                    norm_gray_x = gray_x / 255.
+                    print("NGX:", norm_gray_x.shape)
+                    inp = torch.cat([norm_gray_x if self.prev_input is None else self.prev_input, norm_gray_x], 1)
+                    print("INP:", inp.shape)
+                    o = self.skills[i](inp)
+                    print("O:", o.shape)
+                    print("OBJM:", self.skills[i].object_masks.shape)
                     self.prev_input = norm_gray_x
-                    out = torch.cat([o, self.skills[i].object_masks], 1)
-                    video_out = out
+                    video_out = torch.cat([o, self.skills[i].object_masks], 1)
+                    print("VIDEO_OUT:", video_out.shape)
             elif self.skills_name[i] == "keypoints":
+                print("--------- KEYPOINTS SKILL ---------")
+                print("INP_SZ:", x.shape)
                 with torch.no_grad():
                     o_enc = self.skills[i].encoder(x)
                     o_key = self.skills[i].key_net(x)
+                    print("OE:", o_enc.shape)
+                    print("OK:", o_key.shape)
                     o = torch.cat([o_enc, o_key], 1)
                     key_out = o
+                    print("KEYPOINTS_OUT:", key_out.shape)
             else:
                 raise NotImplemented(f"{self.skills_name[i]} not implemented")
 
-        adapt_video_out = nn.ReLU(self.adapter_segmentation(video_out))
+        print("--------- MERGE SKILLS ---------")
+
+        print(state_out.shape)
+        print(video_out.shape)
+        print(key_out.shape)
+
+        adapt_video_out = self.relu(self.adapter_segmentation(video_out))
+        adapt_key_out = self.relu(self.adapter_keypoints(key_out))
 
         # real input is the concatenation of all the input skills
-        x = torch.cat([state_out, key_out, adapt_video_out], 1)
+        x = torch.cat([state_out, adapt_key_out, adapt_video_out], 1)
+        print("SKILL_OUT:", x.shape)
 
+        print("--------- AGENT ---------")
         # put a placeholder to occupy the first layer spot
         next_out, w_out = [torch.zeros(x.shape)], x
 
@@ -149,12 +180,12 @@ class PNNCol(nn.Module):
             w_out = self.w[i](w_out)
             # previous col out
             u_out = [
-                self.u[k][i](nn.ReLU(self.v[k][i](self.alpha[k][i]*pre_out[k][i])))
+                self.u[k][i](self.relu(self.v[k][i](self.alpha[k][i]*pre_out[k][i])))
                 if self.col_id != 0 else torch.zeros(w_out.shape)
                 for k in range(self.col_id)
             ]
 
-            w_out = nn.ReLU(w_out + sum(u_out))
+            w_out = self.relu(w_out + sum(u_out))
             next_out.append(w_out)
 
         # output layer
@@ -162,7 +193,7 @@ class PNNCol(nn.Module):
         output = self.w[-1](w_out)
         # prev col
         prev_out = [
-            self.u[k][-1](nn.ReLU(self.v[k][-1](self.alpha[k][-1]*pre_out[k][-1])))
+            self.u[k][-1](self.relu(self.v[k][-1](self.alpha[k][-1]*pre_out[k][-1])))
             if self.col_id != 0 else torch.zeros(output.shape)
             for k in range(self.col_id)
         ]
@@ -171,7 +202,7 @@ class PNNCol(nn.Module):
 
     def _get_conv_out(self, shape):
         output = torch.zeros(1, *shape)
-        for i in range(self.nlayers - 2):
+        for i in range(self.num_layers - 2):
             output = self.w[i](output)
         return int(np.prod(output.size()))
 
@@ -195,7 +226,10 @@ class PNN(nn.Module):
         output, next_out = None, []
 
         for i in range(len(self.columns)):
+            print(f"C{i}")
             output, col_out = self.columns[i](x, next_out)
+            print(f"C{i} - OUT:", output.shape)
+            print(f"C{i} - COL_OUT", len(col_out))
             next_out.append(col_out)
 
         return output
