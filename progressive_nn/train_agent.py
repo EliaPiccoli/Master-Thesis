@@ -15,20 +15,21 @@ from video_object_segmentation.model import VideoObjectSegmentationModel
 from keypoints_transporter.models import Encoder, KeyNet, RefineNet, Transporter
 
 device = torch.device('cuda:2' if torch.cuda.is_available() else 'cpu')
+torch.set_num_threads(16)
 
 BATCH_SIZE = 128
 MEMORY_SIZE = 50000
 GAMMA = 0.99
-TAU = 1e-3
+TAU = 0.05
 LR = 1e-3
 EPS = 1.0
 EPS_MIN = 0.05
-EPS_DECAY = 0.99
+EPS_DECAY = 0.995
 EPISODES = 100000
 MAX_STEP = 10000
 SAVE_CKPT = 1000
 ENV = "PongNoFrameskip-v4"
-SEED = 420
+SEED = 8500
 
 random.seed(SEED)
 np.random.seed(SEED)
@@ -122,5 +123,6 @@ args = {
     'save_ckpt': SAVE_CKPT,
     'memory_size': MEMORY_SIZE
 }
+
 agent = Agent(env, args, pnn, t_pnn, wandb, device)
 agent.train()

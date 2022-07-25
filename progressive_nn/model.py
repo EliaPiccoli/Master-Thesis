@@ -207,6 +207,12 @@ class PNNCol(nn.Module):
             output = self.w[i](output)
         return int(np.prod(output.size()))
 
+    def train(self, mode=True):
+        super().train(mode)
+        for skill in self.skills:
+            skill.eval()
+
+
 class PNN(nn.Module):
     def __init__(self, allcol):
         super().__init__()
@@ -215,11 +221,14 @@ class PNN(nn.Module):
         for col in allcol:
             self.columns.append(col)
 
+        self.freeze()
+
     def freeze(self):
         if len(self.columns) == 1:
             return
         
-        for i in range(len(self.columns - 1)):
+        for i in range(len(self.columns) - 1):
+            self.columns[i].eval()
             for param in self.columns[i].parameters():
                 param.requires_grad = False
 
@@ -234,3 +243,7 @@ class PNN(nn.Module):
             next_out.append(col_out)
 
         return output
+    
+    def train(self, mode=True):
+        super().train(mode)
+        self.freeze()

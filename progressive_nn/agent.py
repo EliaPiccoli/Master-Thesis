@@ -2,8 +2,8 @@ import torch
 import torch.nn.functional as F
 import numpy as np
 import random
-import time
 import os
+import copy
 from collections import deque, namedtuple
 
 Transition = namedtuple('Transition', ('state', 'action', 'reward', 'state_', 'done'))
@@ -52,6 +52,7 @@ class Agent():
         self.wandb = wandb
 
         self.net = model
+        self.net.train()
         self.target_net = target_net
         self.target_net.load_state_dict(self.net.state_dict())
         self.target_net.eval()
@@ -60,6 +61,7 @@ class Agent():
         self.optimizer = torch.optim.Adam(self.net.parameters(), lr=args['lr'])
 
     def fit_model(self):
+        self.optimizer.zero_grad()
         states, actions, rewards, states_, dones = self.memory.sample(self.batch_size)
 
         Q_target_next = self.target_net(states_).detach().max(1)[0].unsqueeze(1)
@@ -75,9 +77,9 @@ class Agent():
             target_param.data.copy_(self.tau*net_param.data + (1.0 - self.tau)*target_param.data)
 
     def train(self):
+        # t = copy.deepcopy(self.net.columns[0].adapter_segmentation.weight)
         for e in range(self.episodes):
-            self.optimizer.zero_grad()
-
+            # print(t - self.net.columns[0].adapter_segmentation.weight)
             state = self.env.reset()
             done = False
             reward_e = 0
@@ -117,7 +119,6 @@ class Agent():
                 self.fit_model()
                 self.soft_target_update()
 
-            # TODO: log to wandb
             # print(f"episode: {e}, reward: {reward_e}, steps: {ep_steps}, eps: {self.eps:.5f}, score: {pt}")
 
             self.wandb.log({
