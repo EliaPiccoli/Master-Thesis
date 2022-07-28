@@ -7,15 +7,14 @@ class PNNCol(nn.Module):
     '''
        [0] Conv2D
        [1] Conv2D
-       [2] Conv2D
        [3] Linear
        [4] Linear
     '''
-    def __init__(self, col_id, num_channels, n_actions, input_size, base_skills, hidden_size=256):
+    def __init__(self, col_id, n_actions, base_skills, num_channels=3, input_size=(3, 84, 84), hidden_size=256):
         super().__init__()
 
         self.col_id = col_id
-        self.num_layers = 5
+        self.num_layers = 4
 
         # init all base skills and freeze them
         self.skills = nn.ModuleList()
@@ -41,10 +40,9 @@ class PNNCol(nn.Module):
 
         # define nn model
         self.w.append(
-            nn.Conv2d(num_channels, 64, 3, 1, 1),
+            nn.Conv2d(num_channels, 32, 3, 1, 1),
         )
         self.w.extend([
-            nn.Conv2d(64, 32, 3, 1, 1),
             nn.Conv2d(32, 32, 3, 1, 1)
         ])
         conv_out_size = self._get_conv_out(input_size)
@@ -62,7 +60,6 @@ class PNNCol(nn.Module):
             self.v.append(nn.ModuleList)
             self.v[i].append(nn.Identity())
             self.v[i].extend([
-                nn.Conv2d(32, 1, 1),
                 nn.Conv2d(32, 1, 1)
             ])
             self.v[i].append(nn.Linear(conv_out_size, conv_out_size))
@@ -82,13 +79,37 @@ class PNNCol(nn.Module):
             self.u.append(nn.ModuleList())
             self.u[i].append(nn.Identity())
             self.u[i].extend([
-                nn.Conv2d(1, 32, 3, 2, 1),
-                nn.Conv2d(1, 32, 3, 2, 1)
+                nn.Conv2d(1, 32, 3, 1, 1)
             ])
             self.u[i].append(nn.Linear(conv_out_size, hidden_size))
             self.u[i].append(nn.Linear(hidden_size, n_actions))
 
+        self._init_weights()
+
+    def _init_weights(self):
+        self._reset_parameters()
+        self.w[-1].weight.data = self._normalized(self.w[-1].weight.data, 1e-2)
+
+        for i in range(self.col_id):
+            self.v[i][-1].weight.data = self._normalized(self.v[i][-1].weight.data, 1e-2)
+            self.u[i][-1].weight.data = self._normalized(self.u[i][-1].weight.data, 1e-2)
+
+    def _normalized(self, weights, std=1.0):
+        output = torch.randn(weights.size())
+        output *= std / torch.sqrt(output.pow(2).sum(1, keepdim=True))
+        return output
+
+    def _reset_parameters(self):
+        for module in self.modules():
+            if isinstance(module, (nn.Conv2d, nn.Linear)):
+                nn.init.xavier_uniform_(module.weight)
+                if module.bias is not None:
+                    nn.init.constant_(module.bias, 0)
+
     def apply_skills(self, x):
+        if len(self.skills) == 0:
+            return x
+        
         # use skills to elaborate the input
         state_out = None
         video_out = None
@@ -172,7 +193,7 @@ class PNNCol(nn.Module):
         for i in range(self.num_layers - 1):
             if i == self.num_layers - 2:
                 # Flatten
-                w_out = w_out.view(w_out.size(0), -1)
+                w_out = torch.reshape(w_out, (w_out.size(0), -1))
                 # Flatten all the previous output too
                 for k in range(self.col_id):
                     pre_out[k][i] = pre_out[k][i].view(pre_out[k][i].size(0), -1)

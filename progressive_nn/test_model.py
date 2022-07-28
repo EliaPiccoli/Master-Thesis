@@ -41,10 +41,14 @@ col1 = PNNCol(0, 154, 5, (154, 16, 16), skills)
 col1.to(device)
 col1.train()
 
-pnn = PNN([col1])
+col2 = PNNCol(0, 154, 5, (154, 16, 16), skills)
+col2.to(device)
+col2.train()
+
+pnn = PNN([col1, col2])
 pnn.to(device)
 pnn.train()
 
-inp = torch.rand(1, 3, 84, 84, device=device)
+inp = torch.rand(1, 84, 84, 3, device=device)
 out = pnn(inp)
 print("PNN_OUT:", out.shape)

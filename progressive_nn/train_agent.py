@@ -15,27 +15,28 @@ from video_object_segmentation.model import VideoObjectSegmentationModel
 from keypoints_transporter.models import Encoder, KeyNet, RefineNet, Transporter
 
 device = torch.device('cuda:2' if torch.cuda.is_available() else 'cpu')
-torch.set_num_threads(16)
+torch.set_num_threads(8)
 
-BATCH_SIZE = 128
+BATCH_SIZE = 64
 MEMORY_SIZE = 50000
-GAMMA = 0.99
+GAMMA = 0.97
 TAU = 0.05
-LR = 1e-3
+LR = 5e-4
 EPS = 1.0
 EPS_MIN = 0.05
 EPS_DECAY = 0.995
 EPISODES = 100000
 MAX_STEP = 10000
 SAVE_CKPT = 1000
+GRAD_CLIP = 40
 ENV = "PongNoFrameskip-v4"
-SEED = 8500
+SEED = 1
 
 random.seed(SEED)
 np.random.seed(SEED)
 torch.manual_seed(SEED)
 
-wandb.init(project="thesis", entity="epai", tags=["Pong1C-Agent"])
+wandb.init(project="thesis", entity="epai", tags=["Pong-SDQN"])
 
 # create env
 env = WarpFrame(make_atari(ENV), width=84, height=84, grayscale=False)
@@ -86,13 +87,14 @@ wandb.config.update({
         'save_ckpt': SAVE_CKPT,
         'memory_size': MEMORY_SIZE,
         'action_space': ACTION_SPACE,
+        'grad_clip': GRAD_CLIP,
         'state_model': state_path,
         'video_model': video_path,
         'key_model': keypoints_path
     })
 
 # create models
-col1 = PNNCol(0, 154, ACTION_SPACE, (154, 16, 16), skills)
+col1 = PNNCol(0, ACTION_SPACE, skills, 154, (154, 16, 16))
 col1.to(device)
 col1.train()
 
@@ -101,7 +103,7 @@ pnn.to(device)
 pnn.train()
 
 # target network
-t_col1 = PNNCol(0, 154, ACTION_SPACE, (154, 16, 16), skills)
+t_col1 = PNNCol(0, ACTION_SPACE, skills, 154, (154, 16, 16))
 t_col1.to(device)
 t_col1.train()
 
@@ -121,7 +123,8 @@ args = {
     'max_episodes': EPISODES,
     'max_ep_step': MAX_STEP,
     'save_ckpt': SAVE_CKPT,
-    'memory_size': MEMORY_SIZE
+    'memory_size': MEMORY_SIZE,
+    'grad_clip': GRAD_CLIP
 }
 
 agent = Agent(env, args, pnn, t_pnn, wandb, device)

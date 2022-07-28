@@ -48,6 +48,7 @@ class Agent():
         self.episodes = args['max_episodes']
         self.episode_steps = args['max_ep_step']
         self.save_ckpt = args['save_ckpt']
+        self.max_grad_norm = args['grad_clip']
         self.device = device
         self.wandb = wandb
 
@@ -61,15 +62,20 @@ class Agent():
         self.optimizer = torch.optim.Adam(self.net.parameters(), lr=args['lr'])
 
     def fit_model(self):
-        self.optimizer.zero_grad()
         states, actions, rewards, states_, dones = self.memory.sample(self.batch_size)
 
-        Q_target_next = self.target_net(states_).detach().max(1)[0].unsqueeze(1)
+        state_q = self.net(states)
+        states_q = self.net(states_)
+        states_target_q = self.target_net(states_)
+
+        Q_exp = state_q.gather(1, actions)
+        Q_target_next = states_target_q.gather(1, states_q.max(1)[1].unsqueeze(1))
         Q_targets = rewards + self.gamma * Q_target_next * (1 - dones)
-        Q_exp = self.net(states).gather(1, actions)
 
         loss = F.mse_loss(Q_exp, Q_targets)
+        self.optimizer.zero_grad()
         loss.backward()
+        torch.nn.utils.clip_grad_norm_(self.net.parameters(), self.max_grad_norm)
         self.optimizer.step()
 
     def soft_target_update(self):
@@ -87,24 +93,17 @@ class Agent():
             pt = [0, 0]
             
             while not done and ep_steps < self.episode_steps:
-                if random.random() <= self.eps:
+                if random.uniform(0,1) <= self.eps:
                     action = self.env.action_space.sample()
                 else:
-                    self.net.eval()
                     with torch.no_grad():
                         s = torch.from_numpy(state).float().unsqueeze(0).to(self.device)
                         action = np.argmax(self.net(s).cpu())
-                    self.net.train()
 
                 state_, reward, done, _ = self.env.step(action)
                 
-                if not done:
-                    if ep_steps + 1 == self.episode_steps:
-                        self.memory.push(state.copy(), action, -1, state_.copy(), 1)
-                    else:
-                        self.memory.push(state.copy(), action, reward, state_.copy(), done)
-                else:
-                    self.memory.push(state.copy(), action, reward, state_.copy(), done)
+                self.memory.push(state.copy(), action, reward, state_.copy(), done)
+                
                 reward_e += reward
                 if reward < 0:
                     pt[0] += 1
@@ -113,11 +112,13 @@ class Agent():
                 ep_steps += 1
                 state = state_.copy()
 
+                #every 100 steps fit the model
+                if ep_steps % 100 == 0 and len(self.memory.memory) >= self.batch_size:
+                    self.fit_model()
+                    self.soft_target_update()
+            
+            # done
             self.eps = max(self.eps_min, self.eps*self.eps_decay)
-
-            if len(self.memory.memory) >= self.batch_size:
-                self.fit_model()
-                self.soft_target_update()
 
             # print(f"episode: {e}, reward: {reward_e}, steps: {ep_steps}, eps: {self.eps:.5f}, score: {pt}")
 
