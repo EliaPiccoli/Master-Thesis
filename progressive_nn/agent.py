@@ -90,7 +90,6 @@ class Agent():
             done = False
             reward_e = 0
             ep_steps = 0
-            pt = [0, 0]
             
             while not done and ep_steps < self.episode_steps:
                 if random.uniform(0,1) <= self.eps:
@@ -105,14 +104,10 @@ class Agent():
                 self.memory.push(state.copy(), action, reward, state_.copy(), done)
                 
                 reward_e += reward
-                if reward < 0:
-                    pt[0] += 1
-                if reward > 0:
-                    pt[1] += 1
                 ep_steps += 1
                 state = state_.copy()
 
-                #every 100 steps fit the model
+                # every 100 steps fit the model
                 if ep_steps % 100 == 0 and len(self.memory.memory) >= self.batch_size:
                     self.fit_model()
                     self.soft_target_update()
@@ -120,16 +115,16 @@ class Agent():
             # done
             self.eps = max(self.eps_min, self.eps*self.eps_decay)
 
-            # print(f"episode: {e}, reward: {reward_e}, steps: {ep_steps}, eps: {self.eps:.5f}, score: {pt}")
+            print(f"episode: {e}, reward: {reward_e}, steps: {ep_steps}, eps: {self.eps:.5f}")
 
-            self.wandb.log({
-                "reward": reward_e,
-                "eps": round(self.eps, 5),
-                "cpu_score": pt[0],
-                "agent_score": pt[1]
-            }, step=e)
+        #     self.wandb.log({
+        #         "reward": reward_e,
+        #         "eps": round(self.eps, 5),
+        #         "cpu_score": pt[0],
+        #         "agent_score": pt[1]
+        #     }, step=e)
     
-            if e > 0 and e % self.save_ckpt == 0:
-                torch.save(self.net.state_dict(), os.path.join(self.wandb.run.dir, f'model_{e}.pt'))
+        #     if e > 0 and e % self.save_ckpt == 0:
+        #         torch.save(self.net.state_dict(), os.path.join(self.wandb.run.dir, f'model_{e}.pt'))
         
-        torch.save(self.net.state_dict(), os.path.join(self.wandb.run.dir, f'model_final.pt'))
+        # torch.save(self.net.state_dict(), os.path.join(self.wandb.run.dir, f'model_final.pt'))

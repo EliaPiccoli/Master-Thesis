@@ -14,7 +14,7 @@ from atariari.methods.encoders import NatureCNN
 from video_object_segmentation.model import VideoObjectSegmentationModel
 from keypoints_transporter.models import Encoder, KeyNet, RefineNet, Transporter
 
-device = torch.device('cuda:2' if torch.cuda.is_available() else 'cpu')
+device = torch.device('cuda:3' if torch.cuda.is_available() else 'cpu')
 torch.set_num_threads(8)
 
 BATCH_SIZE = 64
@@ -23,14 +23,14 @@ GAMMA = 0.97
 TAU = 0.05
 LR = 5e-4
 EPS = 1.0
-EPS_MIN = 0.05
+EPS_MIN = 0.02
 EPS_DECAY = 0.995
 EPISODES = 100000
 MAX_STEP = 10000
 SAVE_CKPT = 1000
 GRAD_CLIP = 40
 ENV = "PongNoFrameskip-v4"
-SEED = 1
+SEED = 0
 
 random.seed(SEED)
 np.random.seed(SEED)
@@ -40,6 +40,7 @@ wandb.init(project="thesis", entity="epai", tags=["Pong-SDQN"])
 
 # create env
 env = WarpFrame(make_atari(ENV), width=84, height=84, grayscale=False)
+env.seed(SEED)
 ACTION_SPACE = env.action_space.n
 
 # create skills models

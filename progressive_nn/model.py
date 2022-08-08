@@ -57,7 +57,7 @@ class PNNCol(nn.Module):
         # v[col][layer]
         for i in range(self.col_id):
             # adapter
-            self.v.append(nn.ModuleList)
+            self.v.append(nn.ModuleList())
             self.v[i].append(nn.Identity())
             self.v[i].extend([
                 nn.Conv2d(32, 1, 1)
@@ -66,7 +66,7 @@ class PNNCol(nn.Module):
             self.v[i].append(nn.Linear(hidden_size, hidden_size))
 
             # alpha
-            self.alpha.append(nn.ModuleList())
+            self.alpha.append(nn.ParameterList())
             self.alpha[i].append(
                 nn.Parameter(torch.Tensor(1), requires_grad=False)
             )
@@ -186,11 +186,14 @@ class PNNCol(nn.Module):
 
         # # print("--------- AGENT ---------")
         # put a placeholder to occupy the first layer spot
+        # BUG: need to ignore this element while using next_out for the secondo column s(currently +1)
         next_out, w_out = [torch.zeros(x.shape)], x
 
         output = None
         # all layers[:-1]
         for i in range(self.num_layers - 1):
+            print(f"#### Layer {i}")
+
             if i == self.num_layers - 2:
                 # Flatten
                 w_out = torch.reshape(w_out, (w_out.size(0), -1))
@@ -200,12 +203,21 @@ class PNNCol(nn.Module):
 
             # model out
             w_out = self.w[i](w_out)
+            print("WOUT:", w_out.shape)
+
             # previous col out
+            # BUG: MISSING LAYER IN ALPHA V PRE (?)
             u_out = [
-                self.u[k][i](self.relu(self.v[k][i](self.alpha[k][i]*pre_out[k][i])))
+                self.u[k][i](self.relu(self.v[k][i](self.alpha[k][i]*pre_out[k][i+1])))
                 if self.col_id != 0 else torch.zeros(w_out.shape)
                 for k in range(self.col_id)
             ]
+
+            if len(u_out) > 0:
+                print("PREOUT", pre_out[0][i+1].shape)
+                print("UOUT", u_out[0].shape)
+            else:
+                print("UOUT", u_out)
 
             w_out = self.relu(w_out + sum(u_out))
             next_out.append(w_out)
@@ -257,7 +269,7 @@ class PNN(nn.Module):
         output, next_out = None, []
 
         for i in range(len(self.columns)):
-            # print(f"C{i}")
+            print(f"######### COLUMN {i}")
             output, col_out = self.columns[i](x, next_out)
             # print(f"C{i} - OUT:", output.shape)
             # print(f"C{i} - COL_OUT", len(col_out))
