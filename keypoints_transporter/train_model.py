@@ -17,12 +17,12 @@ gpu = sys.argv[2]
 device = torch.device(gpu if torch.cuda.is_available() else "cpu")
 
 # ENV = "PongNoFrameskip-v4"
-IMG_SZ = 256
+IMG_SZ = 84
 data_path = f"data/{ENV}_{IMG_SZ}"
 NUM_EPS = 100
 MAX_EP_LEN = 100
 MAX_ITER = 1e6
-batch_size = 32
+batch_size = 64
 image_channels = 3
 K = 4
 lr = 1e-3

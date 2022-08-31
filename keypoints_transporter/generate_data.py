@@ -1,14 +1,14 @@
 import numpy as np
-SEED = 10
+SEED = 0
 np.random.seed(SEED)
 
 import os
 from PIL import Image
 from baselines.common.atari_wrappers import make_atari, WarpFrame
 
-ENV = "PongNoFrameskip-v4"
+ENV = "BreakoutNoFrameskip-v4"
 NUM_EPS = 100
-IMG_SZ = 256
+IMG_SZ = 84
 
 env = WarpFrame(make_atari(ENV, max_episode_steps=100), width=IMG_SZ, height=IMG_SZ, grayscale=False)
 obs = env.reset()
