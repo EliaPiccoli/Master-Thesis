@@ -14,7 +14,9 @@ from atariari.methods.encoders import NatureCNN
 from video_object_segmentation.model import VideoObjectSegmentationModel
 from keypoints_transporter.models import Encoder, KeyNet, RefineNet, Transporter
 
-device = 'cpu'
+# nohup python train_2game_agent.py > pacman3.log 2>&1 &
+
+device = torch.device('cuda:3' if torch.cuda.is_available() else 'cpu')
 torch.set_num_threads(8)
 
 BATCH_SIZE = 64
@@ -23,19 +25,22 @@ GAMMA = 0.97
 TAU = 0.05
 LR = 5e-4
 EPS = 1.0
-EPS_MIN = 0.02
-EPS_DECAY = 0.995
+EPS_MIN = 0.1
+EPS_DECAY = 0.9995
 EPISODES = 100000
 MAX_STEP = 10000
 SAVE_CKPT = 1000
 GRAD_CLIP = 40
 ENV1 = "PongNoFrameskip-v4"
-ENV2 = "MsPacmanNoFrameskip-v4"
-SEED = 0
+# ENV2 = "MsPacmanNoFrameskip-v4"
+ENV2 = "BreakoutNoFrameskip-v4"
+SEED = 1
 
 random.seed(SEED)
 np.random.seed(SEED)
 torch.manual_seed(SEED)
+
+wandb.init(project="thesis", entity="epai", tags=["Breakout-SDQN"])
 
 ### Load model previous game (PONG)
 # create env
@@ -75,19 +80,20 @@ skills = [
 col1 = PNNCol(0, ACTION_SPACE, skills, 154, (154, 16, 16))
 pnn = PNN([col1])
 pnn.eval()
-model_path = "/data/e.piccoli/Master-Thesis/progressive_nn/wandb/run-20220727_144002-39ii4aus/files/model_40000.pt" #sqdn1
-# model_path = "/data/e.piccoli/Master-Thesis/progressive_nn/wandb/run-20220802_021225-1ui6exeh/files/model_36000.pt" # sqdn3
+model_path = "/data/e.piccoli/Master-Thesis/progressive_nn/wandb/run-20220727_144002-39ii4aus/files/model_40000.pt" #sdqn1
+# model_path = "/data/e.piccoli/Master-Thesis/progressive_nn/wandb/run-20220802_021225-1ui6exeh/files/model_36000.pt" # sdqn3
 pnn.load_state_dict(torch.load(model_path, map_location=device))
 pong_col = pnn.columns[0]
 
-### Create model new game (PACMAN)
+### Create model new game
 # create env
 env2 = WarpFrame(make_atari(ENV2), width=84, height=84, grayscale=False)
 env2.seed(SEED)
 ACTION_SPACE2 = env2.action_space.n
 
 # load skills models
-state_path2 = "/data/e.piccoli/Master-Thesis/state_representation/wandb/run-20220518_164211-3ew92jnk/files/MsPacmanNoFrameskip-v4.pt"
+# state_path2 = "/data/e.piccoli/Master-Thesis/state_representation/wandb/run-20220518_164211-3ew92jnk/files/MsPacmanNoFrameskip-v4.pt"
+state_path2 = "/data/e.piccoli/Master-Thesis/state_representation/wandb/run-20220825_181100-1rwo0wnv/files/BreakoutNoFrameskip-v4.pt"
 n = Namespace()
 setattr(n, 'feature_size', 256)
 setattr(n, 'no_downsample', True)
@@ -96,12 +102,14 @@ state_rep_encoder2 = NatureCNN(1, n)
 state_rep_encoder2.load_state_dict(torch.load(state_path2, map_location=device))
 state_rep_encoder2.eval()
 
-video_path2 = "/data/e.piccoli/Master-Thesis/video_object_segmentation/wandb/run-20220808_102320-2ghdq07i/files/MsPacmanNoFrameskip-v4.pt"
+# video_path2 = "/data/e.piccoli/Master-Thesis/video_object_segmentation/wandb/run-20220808_102320-2ghdq07i/files/MsPacmanNoFrameskip-v4.pt"
+video_path2 = "/data/e.piccoli/Master-Thesis/video_object_segmentation/wandb/run-20220825_175252-1z0oxtys/files/BreakoutNoFrameskip-v4.pt"
 video_segmenation_model2 = VideoObjectSegmentationModel(device=device, K=20)
 video_segmenation_model2.load_state_dict(torch.load(video_path2, map_location=device))
 video_segmenation_model2.eval()
 
-keypoints_path2 = "/data/e.piccoli/Master-Thesis/keypoints_transporter/wandb/run-20220622_111625-2ke0zp2g/files/MsPacmanNoFrameskip-v4.pt"
+# keypoints_path2 = "/data/e.piccoli/Master-Thesis/keypoints_transporter/wandb/run-20220622_111625-2ke0zp2g/files/MsPacmanNoFrameskip-v4.pt"
+keypoints_path2 = "/data/e.piccoli/Master-Thesis/keypoints_transporter/wandb/run-20220825_180346-7hkcwd14/files/BreakoutNoFrameskip-v4.pt"
 e = Encoder(3)
 k = KeyNet(3, 4)
 r = RefineNet(3)
@@ -114,6 +122,34 @@ skills2 = [
     ("video-segmentation", video_segmenation_model2),
     ("keypoints", keypoints_model2)
 ]
+
+# update all infos
+wandb.config.update({
+        'seed': SEED,
+        'env1': ENV1,
+        'env2': ENV2,
+        'batch_size': BATCH_SIZE,
+        'gamma': GAMMA,
+        'tau': TAU,
+        'lr': LR,
+        'eps': EPS,
+        'eps_decay': EPS_DECAY,
+        'eps_min': EPS_MIN,
+        'max_episodes': EPISODES,
+        'max_ep_step': MAX_STEP,
+        'save_ckpt': SAVE_CKPT,
+        'memory_size': MEMORY_SIZE,
+        'action_space': ACTION_SPACE,
+        'action_space2': ACTION_SPACE2,
+        'grad_clip': GRAD_CLIP,
+        'state_model_1': state_path,
+        'video_model_1': video_path,
+        'key_model_1': keypoints_path,
+        'env1_model': model_path,
+        'state_model_2': state_path2,
+        'video_model_2': video_path2,
+        'key_model_2': keypoints_path2
+    })
 
 # create models
 col2 = PNNCol(1, ACTION_SPACE2, skills2, 154, (154, 16, 16))
@@ -149,11 +185,5 @@ args = {
     'grad_clip': GRAD_CLIP
 }
 
-agent = Agent(env2, args, pnn2, t_pnn2, wandb, None)
-# agent.train()
-
-state = env2.reset()
-with torch.no_grad():
-    s = torch.from_numpy(state).float().unsqueeze(0).to(device)
-    action = np.argmax(pnn2(s).cpu())
-    print(action)
+agent = Agent(env2, args, pnn2, t_pnn2, wandb, device)
+agent.train()

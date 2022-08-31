@@ -14,6 +14,8 @@ from atariari.methods.encoders import NatureCNN
 from video_object_segmentation.model import VideoObjectSegmentationModel
 from keypoints_transporter.models import Encoder, KeyNet, RefineNet, Transporter
 
+# nohup python train_agent.py > pacman1.log 2>&1 &
+
 device = torch.device('cuda:3' if torch.cuda.is_available() else 'cpu')
 torch.set_num_threads(8)
 
@@ -23,54 +25,55 @@ GAMMA = 0.97
 TAU = 0.05
 LR = 5e-4
 EPS = 1.0
-EPS_MIN = 0.02
-EPS_DECAY = 0.995
+EPS_MIN = 0.1
+EPS_DECAY = 0.9995
 EPISODES = 100000
 MAX_STEP = 10000
 SAVE_CKPT = 1000
 GRAD_CLIP = 40
-ENV = "PongNoFrameskip-v4"
-SEED = 0
+# ENV = "MsPacmanNoFrameskip-v4"
+ENV = "BreakoutNoFrameskip-v4"
+SEED = 1
 
 random.seed(SEED)
 np.random.seed(SEED)
 torch.manual_seed(SEED)
 
-wandb.init(project="thesis", entity="epai", tags=["Pong-SDQN"])
+wandb.init(project="thesis", entity="epai", tags=["Breakout-DQN"])
 
 # create env
 env = WarpFrame(make_atari(ENV), width=84, height=84, grayscale=False)
 env.seed(SEED)
 ACTION_SPACE = env.action_space.n
 
-# create skills models
-state_path = "/data/e.piccoli/Master-Thesis/state_representation/wandb/run-20220722_190610-37a6tv3d/files/PongNoFrameskip-v4.pt"
-n = Namespace()
-setattr(n, 'feature_size', 256)
-setattr(n, 'no_downsample', True)
-setattr(n, 'end_with_relu', False)
-state_rep_encoder = NatureCNN(1, n)
-state_rep_encoder.load_state_dict(torch.load(state_path, map_location=device))
-state_rep_encoder.eval()
+# # create skills models
+# state_path = "/data/e.piccoli/Master-Thesis/state_representation/wandb/run-20220722_190610-37a6tv3d/files/PongNoFrameskip-v4.pt"
+# n = Namespace()
+# setattr(n, 'feature_size', 256)
+# setattr(n, 'no_downsample', True)
+# setattr(n, 'end_with_relu', False)
+# state_rep_encoder = NatureCNN(1, n)
+# state_rep_encoder.load_state_dict(torch.load(state_path, map_location=device))
+# state_rep_encoder.eval()
 
-video_path = "/data/e.piccoli/Master-Thesis/video_object_segmentation/wandb/run-20220707_191800-124hx1ez/files/PongNoFrameskip-v4.pt"
-video_segmenation_model = VideoObjectSegmentationModel(device=device, K=20)
-video_segmenation_model.load_state_dict(torch.load(video_path, map_location=device))
-video_segmenation_model.eval()
+# video_path = "/data/e.piccoli/Master-Thesis/video_object_segmentation/wandb/run-20220707_191800-124hx1ez/files/PongNoFrameskip-v4.pt"
+# video_segmenation_model = VideoObjectSegmentationModel(device=device, K=20)
+# video_segmenation_model.load_state_dict(torch.load(video_path, map_location=device))
+# video_segmenation_model.eval()
 
-keypoints_path = "/data/e.piccoli/Master-Thesis/keypoints_transporter/wandb/run-20220623_163543-34u2d8d0/files/PongNoFrameskip-v4.pt"
-e = Encoder(3)
-k = KeyNet(3, 4)
-r = RefineNet(3)
-keypoints_model = Transporter(e, k, r)
-keypoints_model.load_state_dict(torch.load(keypoints_path, map_location=device))
-keypoints_model.eval()
+# keypoints_path = "/data/e.piccoli/Master-Thesis/keypoints_transporter/wandb/run-20220623_163543-34u2d8d0/files/PongNoFrameskip-v4.pt"
+# e = Encoder(3)
+# k = KeyNet(3, 4)
+# r = RefineNet(3)
+# keypoints_model = Transporter(e, k, r)
+# keypoints_model.load_state_dict(torch.load(keypoints_path, map_location=device))
+# keypoints_model.eval()
 
-skills = [
-    ("state-representation", state_rep_encoder),
-    ("video-segmentation", video_segmenation_model),
-    ("keypoints", keypoints_model)
-]
+# skills = [
+#     ("state-representation", state_rep_encoder),
+#     ("video-segmentation", video_segmenation_model),
+#     ("keypoints", keypoints_model)
+# ]
 
 # update all infos
 wandb.config.update({
@@ -89,13 +92,13 @@ wandb.config.update({
         'memory_size': MEMORY_SIZE,
         'action_space': ACTION_SPACE,
         'grad_clip': GRAD_CLIP,
-        'state_model': state_path,
-        'video_model': video_path,
-        'key_model': keypoints_path
+        # 'state_model': state_path,
+        # 'video_model': video_path,
+        # 'key_model': keypoints_path
     })
 
 # create models
-col1 = PNNCol(0, ACTION_SPACE, skills, 154, (154, 16, 16))
+col1 = PNNCol(0, ACTION_SPACE, [])
 col1.to(device)
 col1.train()
 
@@ -104,7 +107,7 @@ pnn.to(device)
 pnn.train()
 
 # target network
-t_col1 = PNNCol(0, ACTION_SPACE, skills, 154, (154, 16, 16))
+t_col1 = PNNCol(0, ACTION_SPACE, [])
 t_col1.to(device)
 t_col1.train()
 

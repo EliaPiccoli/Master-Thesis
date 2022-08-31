@@ -3,6 +3,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 
+device = torch.device('cuda:3' if torch.cuda.is_available() else 'cpu')
+
 class PNNCol(nn.Module):
     '''
        [0] Conv2D
@@ -15,7 +17,6 @@ class PNNCol(nn.Module):
 
         self.col_id = col_id
         self.num_layers = 4
-
         # init all base skills and freeze them
         self.skills = nn.ModuleList()
         self.skills_name = []
@@ -26,18 +27,15 @@ class PNNCol(nn.Module):
             self.skills[-1].eval()
             for param in self.skills[-1].parameters():
                 param.requires_grad = False
-
         # adapters for skills (hardcoded)
         self.adapter_segmentation = nn.Conv2d(21, 21, 5, 5)
         self.adapter_keypoints = nn.Conv2d(132, 132, 6)
         self.relu = nn.ReLU()
-
         # init normal model, lateral connection, adapter layer and alpha
         self.w = nn.ModuleList()
         self.u = nn.ModuleList()
         self.v = nn.ModuleList()
         self.alpha = nn.ModuleList()
-
         # define nn model
         self.w.append(
             nn.Conv2d(num_channels, 32, 3, 1, 1),
@@ -52,7 +50,6 @@ class PNNCol(nn.Module):
         self.w.append(
             nn.Linear(hidden_size, n_actions)
         )
-        
         # lateral connections, adapter and alpha for col_id != 0
         # v[col][layer]
         for i in range(self.col_id):
@@ -83,7 +80,6 @@ class PNNCol(nn.Module):
             ])
             self.u[i].append(nn.Linear(conv_out_size, hidden_size))
             self.u[i].append(nn.Linear(hidden_size, n_actions))
-
         self._init_weights()
 
     def _init_weights(self):
@@ -186,45 +182,74 @@ class PNNCol(nn.Module):
 
         # # print("--------- AGENT ---------")
         # put a placeholder to occupy the first layer spot
-        # BUG: need to ignore this element while using next_out for the secondo column s(currently +1)
         next_out, w_out = [torch.zeros(x.shape)], x
+
+        # if self.col_id > 0:
+        #     print("## PRE_OUT")
+        #     for i in range(len(pre_out[0])):
+        #         print(pre_out[0][i].shape)
 
         output = None
         # all layers[:-1]
         for i in range(self.num_layers - 1):
-            print(f"#### Layer {i}")
+            # print(f"#### Layer {i}")
 
             if i == self.num_layers - 2:
+                # print(f"## FLATTEN {i}")
+                # print("INPUT SZ:", w_out.shape)
                 # Flatten
                 w_out = torch.reshape(w_out, (w_out.size(0), -1))
                 # Flatten all the previous output too
                 for k in range(self.col_id):
+                    # print(f"PRE[{k}][{i}]", pre_out[k][i].shape)
                     pre_out[k][i] = pre_out[k][i].view(pre_out[k][i].size(0), -1)
+                    # print(f"PRE_F[{k}][{i}]", pre_out[k][i].shape)
 
             # model out
+            # print("INPUT SZ:", w_out.shape)
             w_out = self.w[i](w_out)
-            print("WOUT:", w_out.shape)
+            # print("OUTPUT SZ:", w_out.shape)
 
-            # previous col out
-            # BUG: MISSING LAYER IN ALPHA V PRE (?)
+            # if self.col_id > 0:
+            #     k = 0
+            #     print("PREOUT", pre_out[k][i].shape)
+            #     print("ALPHA*PRE", (self.alpha[k][i]*pre_out[k][i]).shape)
+            #     print("v()", self.v[k][i](self.alpha[k][i]*pre_out[k][i]).shape)
+            #     print("u()", self.u[k][i](self.relu(self.v[k][i](self.alpha[k][i]*pre_out[k][i]))).shape)
+
+            # previous col out 
             u_out = [
-                self.u[k][i](self.relu(self.v[k][i](self.alpha[k][i]*pre_out[k][i+1])))
-                if self.col_id != 0 else torch.zeros(w_out.shape)
+                self.u[k][i](self.relu(self.v[k][i](self.alpha[k][i]*pre_out[k][i])))
+                if self.col_id != 0 and i else torch.zeros(w_out.shape)
                 for k in range(self.col_id)
             ]
 
-            if len(u_out) > 0:
-                print("PREOUT", pre_out[0][i+1].shape)
-                print("UOUT", u_out[0].shape)
+            # if len(u_out) > 0:
+            #     print("UOUT", u_out[0].shape)
+            # else:
+            #     print("UOUT", u_out)
+            if self.col_id != 0:
+                sum_prev = sum(u_out).to(device)
             else:
-                print("UOUT", u_out)
-
-            w_out = self.relu(w_out + sum(u_out))
+                sum_prev = sum(u_out)
+            w_out = self.relu(w_out + sum_prev)
             next_out.append(w_out)
 
+        # print("#### OUTPUT LAYER")
         # output layer
         # model
+        # print("INPUT SZ:", w_out.shape)
         output = self.w[-1](w_out)
+        # print("OUTPUT SZ:", output.shape)
+
+        # if self.col_id > 0:
+        #     k = 0
+        #     i = -1
+        #     print("PREOUT", pre_out[0][-1].shape)
+        #     print("ALPHA*PRE", (self.alpha[k][i]*pre_out[k][-1]).shape)
+        #     print("v()", self.v[k][i](self.alpha[k][-1]*pre_out[k][-1]).shape)
+        #     print("u()", self.u[k][i](self.relu(self.v[k][-1](self.alpha[k][i]*pre_out[k][-1]))).shape)
+
         # prev col
         prev_out = [
             self.u[k][-1](self.relu(self.v[k][-1](self.alpha[k][-1]*pre_out[k][-1])))
@@ -269,7 +294,7 @@ class PNN(nn.Module):
         output, next_out = None, []
 
         for i in range(len(self.columns)):
-            print(f"######### COLUMN {i}")
+            # print(f"######### COLUMN {i}")
             output, col_out = self.columns[i](x, next_out)
             # print(f"C{i} - OUT:", output.shape)
             # print(f"C{i} - COL_OUT", len(col_out))

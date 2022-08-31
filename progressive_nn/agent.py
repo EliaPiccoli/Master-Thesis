@@ -27,12 +27,6 @@ class ReplayMemory():
         next_states = torch.from_numpy(np.array([e.state_ for e in experiences if e is not None])).float().to(self.device)
         dones = torch.from_numpy(np.vstack([e.done for e in experiences if e is not None]).astype(np.uint8)).float().to(self.device)
 
-        # print(states.shape)
-        # print(actions.shape)
-        # print(rewards.shape)
-        # print(next_states.shape)
-        # print(dones.shape)
-
         return (states, actions, rewards, next_states, dones)
 
 class Agent():
@@ -83,9 +77,7 @@ class Agent():
             target_param.data.copy_(self.tau*net_param.data + (1.0 - self.tau)*target_param.data)
 
     def train(self):
-        # t = copy.deepcopy(self.net.columns[0].adapter_segmentation.weight)
         for e in range(self.episodes):
-            # print(t - self.net.columns[0].adapter_segmentation.weight)
             state = self.env.reset()
             done = False
             reward_e = 0
@@ -107,24 +99,22 @@ class Agent():
                 ep_steps += 1
                 state = state_.copy()
 
-                # every 100 steps fit the model
-                if ep_steps % 100 == 0 and len(self.memory.memory) >= self.batch_size:
+                # every 75 steps fit the model
+                if ep_steps % 75 == 0 and len(self.memory.memory) >= self.batch_size:
                     self.fit_model()
                     self.soft_target_update()
             
             # done
             self.eps = max(self.eps_min, self.eps*self.eps_decay)
 
-            print(f"episode: {e}, reward: {reward_e}, steps: {ep_steps}, eps: {self.eps:.5f}")
+            # print(f"episode: {e}, reward: {reward_e}, steps: {ep_steps}, eps: {self.eps:.5f}")
 
-        #     self.wandb.log({
-        #         "reward": reward_e,
-        #         "eps": round(self.eps, 5),
-        #         "cpu_score": pt[0],
-        #         "agent_score": pt[1]
-        #     }, step=e)
+            self.wandb.log({
+                "reward": reward_e,
+                "eps": round(self.eps, 5)
+            }, step=e)
     
-        #     if e > 0 and e % self.save_ckpt == 0:
-        #         torch.save(self.net.state_dict(), os.path.join(self.wandb.run.dir, f'model_{e}.pt'))
+            if e > 0 and e % self.save_ckpt == 0:
+                torch.save(self.net.state_dict(), os.path.join(self.wandb.run.dir, f'model_{e}.pt'))
         
-        # torch.save(self.net.state_dict(), os.path.join(self.wandb.run.dir, f'model_final.pt'))
+        torch.save(self.net.state_dict(), os.path.join(self.wandb.run.dir, f'model_final.pt'))
